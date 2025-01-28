@@ -3,151 +3,159 @@ import pandas as pd
 import math
 from pathlib import Path
 import kagglehub
-import pandas as pd
+import matplotlib.pyplot as plt
+import seaborn as sns
 
-# Set the title and favicon that appear in the Browser's tab bar.
+
+# --- Configuration de la page ---
 st.set_page_config(
-    page_title="Statistiques de l'OMS sur l'espérance de vie :",
-    page_icon=':earth_americas:', # This is an emoji shortcode. Could be a URL too.
+    page_title="Analyse de l'Espérance de Vie - OMS",
+    page_icon="🌍",
+    layout="wide"
 )
 
-# -----------------------------------------------------------------------------
-# Declare some useful functions.
+# --- import du dataset ---
+# Définir le chemin d'accès au dataset
+file_path = "Life Expectancy Data.csv"  # ou spécifie le chemin complet si le fichier est ailleurs
 
-@st.cache_data
-def get_gdp_data():
-    """Grab GDP data from a CSV file.
+# Chargement des données via kaglle
+path = kagglehub.dataset_download("kumarajarshi/life-expectancy-who")
 
-    This uses caching to avoid having to read the file every time. If we were
-    reading from an HTTP endpoint instead of a file, it's a good idea to set
-    a maximum age to the cache with the TTL argument: @st.cache_data(ttl='1d')
-    """
+# --- Texte de présentation ---
+left_co, cent_co, last_co = st.columns([1, 3, 1])
+imgleft_co, imgcent_co, imglast_co = st.columns(3)
+with cent_co:
+    st.title(" Analyse de l'Espérance de Vie - OMS")
+with imgcent_co:
+    st.image("images/oms_logo.png", width=200)
 
-    # Instead of a CSV on disk, you could read from an HTTP endpoint here too.
-    DATA_FILENAME = Path(__file__).parent/'data/gdp_data.csv'
-    raw_gdp_df = pd.read_csv(DATA_FILENAME)
+st.write("")
+st.markdown("""---""")
 
-    MIN_YEAR = 1960
-    MAX_YEAR = 2022
+# --- chapitre sur présenttation du dataset ---
+left_co, cent_co, last_co = st.columns([1, 3, 1])
+with cent_co:
+    st.markdown("""
+                 # **Prédiction de l'espérance de vie**
+                """)
+st.markdown("""
+Ce projet utilise un **dataset de l'OMS** pour analyser les facteurs influençant l'espérance de vie à travers différents pays et années.
 
-    # The data above has columns like:
-    # - Country Name
-    # - Country Code
-    # - [Stuff I don't care about]
-    # - GDP for 1960
-    # - GDP for 1961
-    # - GDP for 1962
-    # - ...
-    # - GDP for 2022
-    #
-    # ...but I want this instead:
-    # - Country Name
-    # - Country Code
-    # - Year
-    # - GDP
-    #
-    # So let's pivot all those year-columns into two: Year and GDP
-    gdp_df = raw_gdp_df.melt(
-        ['Country Code'],
-        [str(x) for x in range(MIN_YEAR, MAX_YEAR + 1)],
-        'Year',
-        'GDP',
-    )
+🔎 **Objectifs** :
+- Explorer les facteurs clés qui influencent la longévité.
+- Nettoyer et préparer les données.
+- Comparer différents modèles de prédiction.
+- Présenter les résultats de manière interactive
+            
+📌 **Méthodologie** :
+1. **Exploration des données** 
+2. **Nettoyage des valeurs manquantes** 
+3. **Modélisation avec Machine Learning** 
+4. **Interprétation des résultats** 
+        
 
-    # Convert years from string to integers
-    gdp_df['Year'] = pd.to_numeric(gdp_df['Year'])
+---
+""", unsafe_allow_html=True)
 
-    return gdp_df
-
-gdp_df = get_gdp_data()
-
-# -----------------------------------------------------------------------------
-# Draw the actual page
-
-# Set the title that appears at the top of the page.
-'''
-# :earth_americas: Statistiques de l'OMS sur l'espérance de vie :
-
-Browse GDP data from the [World Bank Open Data](https://data.worldbank.org/) website. As you'll
-notice, the data only goes to 2022 right now, and datapoints for certain years are often missing.
-But it's otherwise a great (and did I mention _free_?) source of data.
-'''
-
-# Add some spacing
-''
-''
-
-min_value = gdp_df['Year'].min()
-max_value = gdp_df['Year'].max()
-
-from_year, to_year = st.slider(
-    'Which years are you interested in?',
-    min_value=min_value,
-    max_value=max_value,
-    value=[min_value, max_value])
-
-countries = gdp_df['Country Code'].unique()
-
-if not len(countries):
-    st.warning("Select at least one country")
-
-selected_countries = st.multiselect(
-    'Which countries would you like to view?',
-    countries,
-    ['DEU', 'FRA', 'GBR', 'BRA', 'MEX', 'JPN'])
-
-''
-''
-''
-
-# Filter the data
-filtered_gdp_df = gdp_df[
-    (gdp_df['Country Code'].isin(selected_countries))
-    & (gdp_df['Year'] <= to_year)
-    & (from_year <= gdp_df['Year'])
-]
-
-st.header('GDP over time', divider='gray')
-
-''
-
-st.line_chart(
-    filtered_gdp_df,
-    x='Year',
-    y='GDP',
-    color='Country Code',
-)
-
-''
-''
+left_co, cent_co, last_co = st.columns([1, 3, 1])
+with cent_co:
+    st.markdown("""
+                 ## **hypothése:**
+                 Peut on définir l'éspérence de vie d'une personne en fonction d'un ensemble d'éléments données?
+                """)
 
 
-first_year = gdp_df[gdp_df['Year'] == from_year]
-last_year = gdp_df[gdp_df['Year'] == to_year]
+# Chargement des données
+file_path = path + "/Life Expectancy Data.csv"
+df = pd.read_csv(file_path)
 
-st.header(f'GDP in {to_year}', divider='gray')
+# Aperçu du dataset
+st.subheader("Aperçu du dataset")
+st.write(df.head())
 
-''
 
-cols = st.columns(4)
+# Présentation des colonnes du dataset
+st.subheader("Présentation des colonnes du dataset")
 
-for i, country in enumerate(selected_countries):
-    col = cols[i % len(cols)]
 
-    with col:
-        first_gdp = first_year[first_year['Country Code'] == country]['GDP'].iat[0] / 1000000000
-        last_gdp = last_year[last_year['Country Code'] == country]['GDP'].iat[0] / 1000000000
+left_co, center_co, right_co = st.columns(3)
+with left_co:
+    st.markdown("""
+        1. **Country** : Le pays correspondant aux données.
+        2. **Year** : L'année où les données ont été collectées.
+        3. **Life expectancy** : L'espérance de vie moyenne (en années) pour le pays et l'année donnés.
+        4. **Adult Mortality** : Taux de mortalité des adultes (probabilité de décès entre 15 et 60 ans, par 1000 habitants).
+        5. **Infant deaths** : Nombre de décès d'enfants de moins de 1 an pour 1000 naissances vivantes.
+        6. **Alcohol** : Consommation moyenne d'alcool (litres par habitant par an).
+        7. **Percentage expenditure** : Dépenses publiques pour la santé (% du PIB).
+        """, unsafe_allow_html=True)
+    with center_co:
+        st.markdown("""
+            8. **Hepatitis B** : Taux de couverture vaccinale contre l'hépatite B chez les enfants (%).
+            9. **Measles** : Nombre de cas signalés de rougeole.
+            10. **BMI** : Indice de masse corporelle moyen (IMC) pour la population.
+            11. **Under-five deaths** : Nombre de décès d'enfants de moins de 5 ans pour 1000 naissances vivantes.
+            12. **Polio** : Taux de couverture vaccinale contre la poliomyélite chez les enfants (%).
+            13. **Total expenditure** : Dépenses totales pour la santé (% du PIB).
+            14. **Diphtheria** : Taux de couverture vaccinale contre la diphtérie chez les enfants (%).
+            """, unsafe_allow_html=True)
+    with right_co:
+        st.markdown("""
+            15. **HIV/AIDS** : Décès dus au VIH/sida pour 1000 habitants.
+            16. **GDP** : Produit intérieur brut par habitant (USD).
+            17. **Population** : Population totale du pays.
+            18. **Thinness 1-19 years** : Prévalence de la maigreur chez les enfants et adolescents (1 à 19 ans) (%).
+            19. **Thinness 5-9 years** : Prévalence de la maigreur chez les enfants (5 à 9 ans) (%).
+            20. **Income composition of resources** : Indicateur composite de revenus (entre 0 et 1).
+            21. **Schooling** : Durée moyenne de scolarisation (années).
+            """, unsafe_allow_html=True)
 
-        if math.isnan(first_gdp):
-            growth = 'n/a'
-            delta_color = 'off'
-        else:
-            growth = f'{last_gdp / first_gdp:,.2f}x'
-            delta_color = 'normal'
+#  --- statistique desctiptives: 
+st.markdown("""
+            ---
+            """)
 
-        st.metric(
-            label=f'{country} GDP',
-            value=f'{last_gdp:,.0f}B',
-            delta=growth,
-            delta_color=delta_color
-        )
+left_co, center_co, right_co = st.columns(3)
+# Analyse descriptive des données
+with center_co:
+    st.subheader("Analyse descriptive du dataset")
+
+# Aperçu général
+st.markdown("""
+### **🔍 Analyse descriptive**
+L'objectif de cette section est d'explorer les statistiques de base du dataset et d'identifier les premières observations clés.
+
+Voici ce que nous allons examiner :
+1. Taille du dataset
+2. Types de données par colonne
+3. Présence de valeurs manquantes
+4. Statistiques descriptives des variables numériques
+""")
+
+# Taille du dataset
+st.write(f"**Nombre de lignes** : {df.shape[0]}")
+st.write(f"**Nombre de colonnes** : {df.shape[1]}")
+
+# Types de données par colonne
+left_co, right_co = st.columns(2)
+with left_co:
+    st.markdown("### **Types de données**")
+    st.write(df.dtypes)
+
+# Présence de valeurs manquantes
+with right_co:
+    st.markdown("### **Valeurs manquantes**")
+    missing_values = df.isnull().sum()
+    missing_percent = (df.isnull().sum() / len(df)) * 100
+    missing_data = pd.DataFrame({
+        "Valeurs manquantes": missing_values,
+        "Pourcentage (%)": missing_percent
+    })
+    st.write(missing_data)
+
+left_co, center_co, right_co = st.columns([1,3, 1])
+with center_co:
+    st.markdown(""" 
+                ## **Observation et traitement sur les types de valeurs et les valeurs manquantes** """)
+    st.markdown(""" 
+                ### **Typages des Données** """)
