@@ -1,3 +1,5 @@
+
+
 import subprocess
 import sys
 import pkg_resources
@@ -315,12 +317,6 @@ if chart_type == "Remplacement des valeurs manquantes":
 
 imput_null(df_onehot)
 df = df_onehot
-  
-
-st.markdown(""" 
-            ## **exemple de graphiques intéractif**
-            notes: cest graphique ne sont pas qualibré: ils sont là afin de faire des test pour le moment. 
-            """)
 
     # ---------------------------------------------
 # --- Interface utilisateur ---
@@ -328,10 +324,20 @@ st.subheader("🔍 Visualisation interactive des données")
 
 # Liste des colonnes numériques pour l’analyse
 numeric_columns = df.select_dtypes(include=['float64', 'int64']).columns.tolist()
-
-# Sélection de la colonne à analyser
-selected_column = st.selectbox("Sélectionnez une colonne numérique :", numeric_columns)
-
 # Sélection du type de graphique
 chart_type = st.radio("Choisissez le type de graphique :", 
-                      ["Histogramme", "Boxplot", "Scatter Plot", "Heatmap"])
+                      ["Histogramme", "Heatmap"])
+
+if chart_type == "Histogramme":
+    numeric_columns = df.select_dtypes(include=['float64', 'int64']).columns.tolist()
+    st.subheader("Histogramme interactif")
+    if "year" in numeric_columns:
+        numeric_columns.remove("year")
+    selected_column = st.selectbox("Sélectionnez une colonne :", numeric_columns)
+
+    if selected_column:
+        fig, ax = plt.subplots(figsize=(8,5))
+        sns.histplot(df[selected_column], bins=30, kde=True, ax=ax)
+        ax.set_xlabel(selected_column)
+        ax.set_ylabel("Fréquence")
+        st.pyplot(fig)
