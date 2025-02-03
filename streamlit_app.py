@@ -1,8 +1,3 @@
-try:
-    import kagglehub
-except ImportError:
-    subprocess.check_call([sys.executable, "-m", "pip", "install", "kagglehub"])
-    import kagglehub
 
 
 import subprocess
