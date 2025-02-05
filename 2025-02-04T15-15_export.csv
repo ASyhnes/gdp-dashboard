@@ -1,0 +1,11 @@
+﻿,country,year,status,life_expectancy,adult_mortality,infant_deaths,alcohol,percentage_expenditure,hepatitis_b,measles,bmi,under-five_deaths,polio,total_expenditure,diphtheria,hiv/aids,gdp,population,thinness__1-19_years,thinness_5-9_years,income_composition_of_resources,schooling
+0,afghanistan,2015,developing,65,263,62,0.01,71.28,65,1154,19.1,83,6,8.16,65,0.1,584.26,33736494,17.2,17.3,0.48,10.1
+1,afghanistan,2014,developing,59.9,271,64,0.01,73.52,62,492,18.6,86,58,8.18,62,0.1,612.7,327582,17.5,17.5,0.48,10
+2,afghanistan,2013,developing,59.9,268,66,0.01,73.22,64,430,18.1,89,62,8.13,64,0.1,631.74,31731688,17.7,17.7,0.47,9.9
+3,afghanistan,2012,developing,59.5,272,69,0.01,78.18,67,2787,17.6,93,67,8.52,67,0.1,669.96,3696958,17.9,18,0.46,9.8
+4,afghanistan,2011,developing,59.2,275,71,0.01,7.1,68,3013,17.2,97,68,7.87,68,0.1,63.54,2978599,18.2,18.2,0.45,9.5
+5,afghanistan,2010,developing,58.8,279,74,0.01,79.68,66,1989,16.7,102,66,9.2,66,0.1,553.33,2883167,18.4,18.4,0.45,9.2
+6,afghanistan,2009,developing,58.6,281,77,0.01,56.76,63,2861,16.2,106,63,9.42,63,0.1,445.89,284331,18.6,18.7,0.43,8.9
+7,afghanistan,2008,developing,58.1,287,80,0.03,25.87,64,1599,15.7,110,64,8.33,64,0.1,373.36,2729431,18.8,18.9,0.43,8.7
+8,afghanistan,2007,developing,57.5,295,82,0.02,10.91,63,1141,15.2,113,63,6.73,63,0.1,369.84,26616792,19,19.1,0.42,8.4
+9,afghanistan,2006,developing,57.3,295,84,0.03,17.17,64,1990,14.7,116,58,7.43,58,0.1,272.56,2589345,19.2,19.3,0.4,8.1

@@ -179,11 +179,84 @@ if chart_type == "2. Types de données par colonne":
     with right_co:
         st.markdown("""
                     ## **Observations**
-                    - ** titre des colone** nous devons formatter les titres des collones.
+                    - **titre des colone** nous devons formatter les titres des collones.
                     - les variables de type "object" (catégoriques) doivent être converties en valeurs numériques pour que les modèles puissent les utiliser correctement.
                     - **nettoyage et normalisation des données** Nous devons formatez les lignes dans les colonnes pour êtres sur qu'il n'y ai pas d'erreur de saisie (Espace, Majuscule...) 
-                    - **country**: nous allons utiliser la méthode **Encodage One-Hot Encoding** qui va creer une collone pour chaque pays et assigner une valeur 0 ou 1 en fonction de l'appartenance de la ligne à un pays. """)
-    
+                    - ⚠️ **country**: Initialement, nous souhaitions utiliser la méthode **Encodage One-Hot Encoding**.
+                    comme nous allons le voir juste aprés, cette méthode n'est pas viable dans notre cas.
+                    - **status** : Ici, nous utiliserons la méthode **Label Encoding**.
+                    """)
+        # --- Génération du Heatmap des Corrélations ---
+if chart_type == "2. Types de données par colonne":
+    left_co, center_co, right_co = st.columns([1,3,1])
+    with center_co:   
+        st.markdown("""
+                    ### Sélection des Variables pour Identifier le Pays:
+                    ⚠️ **Country** : Initialement, je souhaitais utiliser la méthode **One-Hot Encoding**, qui crée une colonne pour chaque pays et assigne une valeur de 0 ou 1 en fonction de l'appartenance de la ligne à un pays.  
+                    
+                    ⚠️ **Cependant** : cette méthode génère un trop grand nombre de colonnes, ce qui entraîne une **malédiction de la dimensionnalité**.  
+
+                    Je vais donc chercher **deux variables faiblement corrélées entre elles**, mais significatives pour différencier les pays (par exemple, le PIB s'il est disponible). Ensuite, nous créerons une **nouvelle variable** en effectuant une opération entre ces deux variables :  
+                    `nouvelle_variable = variable1 / (variable2 + 1)`.  
+
+                    Pour cela, une **heatmap** nous aidera à identifier les deux variables les plus pertinentes.            
+                    """)
+
+
+        # Sélectionner les colonnes numériques
+        numeric_columns = df.select_dtypes(include=['float64', 'int64']).columns.tolist()
+
+        # Vérifier qu'on a bien des colonnes numériques
+        if not numeric_columns:
+            st.warning("⚠️ Aucune colonne numérique disponible pour la corrélation.")
+        else:
+            # Calcul de la matrice de corrélation
+            correlation_matrix = df[numeric_columns].corr()
+
+            # Création du heatmap
+            fig, ax = plt.subplots(figsize=(12, 8))
+            sns.heatmap(correlation_matrix, annot=False, cmap="coolwarm", linewidths=0.5, center=0)
+            plt.title("Matrice de Corrélation des Variables")
+            st.pyplot(fig)
+
+            # Sélectionner deux variables avec une **faible corrélation** entre elles
+            st.markdown("### 📉 Sélection de Variables Faiblement Corrélées")
+
+            # Conversion de la matrice de corrélation en DataFrame pour l'analyse
+            corr_pairs = correlation_matrix.unstack().reset_index()
+            corr_pairs.columns = ["Variable 1", "Variable 2", "Corrélation"]
+
+            # Éviter les doublons et les corrélations parfaites (1.0 avec soi-même)
+            corr_pairs = corr_pairs[corr_pairs["Variable 1"] != corr_pairs["Variable 2"]]
+            corr_pairs["Corrélation"] = corr_pairs["Corrélation"].abs()  # Valeur absolue pour éviter les signes
+            corr_pairs = corr_pairs.sort_values("Corrélation")  # Trier par corrélation croissante
+
+            # Affichage des **10 paires de variables les moins corrélées**
+            st.write("Top 10 des paires de variables avec une faible corrélation (meilleur choix pour encoder le pays) :")
+            st.write(corr_pairs.head(10))
+
+            # --- Génération de la nouvelle variable country_index ---
+            # Nettoyage des noms de colonnes : suppression des espaces avant et après
+            # Nettoyage des noms de colonnes : suppression des espaces
+            df.columns = df.columns.str.strip()
+
+            # Vérification que les colonnes nécessaires sont bien présentes
+            if "Total expenditure" in df.columns and "HIV/AIDS" in df.columns:
+                # Création de la colonne country_index
+                df["country_index"] = df["Total expenditure"] / (df["HIV/AIDS"] + 1)  # Évite la division par zéro
+
+                # Mettre à jour les données nettoyées dans st.session_state
+                st.session_state["df_cleaned"] = df
+
+                st.success("✅ Nouvelle colonne `country_index` créée avec succès !")
+                st.write("📌 **Colonnes disponibles après la création** :", df.columns.tolist())
+
+                # Affichage pour vérifier si la colonne est bien ajoutée
+                st.write(df[["Country", "Total expenditure", "HIV/AIDS", "country_index"]].head())
+
+                df = df.drop(columns=["Country"])
+
+        
 
 # Présence de valeurs manquantes
 if chart_type == "3. Présence de valeurs manquantes":
@@ -251,28 +324,42 @@ def imput_null(df):
             df[col].fillna(df[col].median(), inplace=True)
 
 df = clean_dataset(df)
-df_onehot = pd.get_dummies(df, columns=["country","status"]).round(2)
 
 # radio:
 left_co, center_co, right_co = st.columns([1,3, 1])
 with center_co:
     st.markdown(""" # DATA-CLEANSING """)
     chart_type = st.radio(" ", 
-                      ["Typages des Données", "One-Hot Encoding (country, status)", "Remplacement des valeurs manquantes"])
+                      ["Typages des Données", "Label Encoding (status)", "Remplacement des valeurs manquantes"])
     if chart_type == "Typages des Données":
         st.markdown(""" 
                 ### **Typages des Données** 
                 Ici, nous formatons le titre des colones, ainsi que toutes les lignes afin d'étre sur d'avoir une nomenclature identique pour chaque colonne, et pour chaque objet.
                 """)
         st.write(df.head(10).round(2))
-        df = df_onehot.round(2)
+        df = df.round(2)
     
-    if chart_type == "One-Hot Encoding (country, status)":
+    if chart_type == "Label Encoding (status)":
         st.markdown(""" 
-                ### **One-Hot Encoding (country, status)** 
-                Ici, nous transformons les valeurs string des pays et des status en colonne par pays, avec 0 ou 1 en fonction de l'appartenace de la ligne au pays.
+                ### **Label Encoding (status)** 
+                Ici, nous transformons les valeurs string des status en 0 ou 1 en fonction de la valeurs initiale du status.
                 """)
-        st.write(df_onehot.head(10))
+        from sklearn.preprocessing import LabelEncoder
+
+        # Initialiser le label encoder
+        label_encoder = LabelEncoder()
+
+        # Transformer la colonne Status en 0 et 1
+        df["status_encoded"] = label_encoder.fit_transform(df["status"])
+
+        # Vérifier le mapping des valeurs
+        status_mapping = dict(zip(label_encoder.classes_, label_encoder.transform(label_encoder.classes_)))
+        print("Mapping des valeurs :", status_mapping)
+
+        # Supprimer l'ancienne colonne si nécessaire
+        df = df.drop(columns=["status"])
+        st.write(df.head())
+
 
 if chart_type == "Remplacement des valeurs manquantes":
     col_right, col_left = st.columns(2)
@@ -319,11 +406,11 @@ if chart_type == "Remplacement des valeurs manquantes":
             st.markdown("""
                         lignes aprés traitements des valeurs manquantes
                         """)
-            imput_null(df_onehot)
-            st.write(df_onehot.isnull().sum())
+            imput_null(df)
+            st.write(df.isnull().sum())
 
-imput_null(df_onehot)
-df = df_onehot
+imput_null(df)
+
 
     # ---------------------------------------------
 # --- Interface utilisateur ---
@@ -332,223 +419,135 @@ st.subheader("🔍 Visualisation interactive des données")
 # Liste des colonnes numériques pour l’analyse
 numeric_columns = df.select_dtypes(include=['float64', 'int64']).columns.tolist()
 # Sélection du type de graphique
-chart_type = st.radio("Choisissez le type de graphique :", 
-                      ["Histogramme", "Heatmap", "Boxplots"])
+col_left, col_cent, col_right = st.columns([2,2,2])
+st.markdown("""
+    ### Analyser en détail les différentes variables du dataset afin de mieux comprendre leur distribution et d'identifier d'éventuelles anomalies.
+    **Sélection interactive d'une colonne**
+    Choix d'une colonne numérique parmi celles du dataset pour afficher ses statistiques et visualiser sa distribution.
 
-if chart_type == "Histogramme":
-    col_left, col_cent, col_right = st.columns([1,3,2])
-    with col_cent:
-        numeric_columns = df.select_dtypes(include=['float64', 'int64']).columns.tolist()
-        st.subheader("Histogramme interactif")
-        if "year" in numeric_columns:
-            numeric_columns.remove("year")
-        selected_column = st.selectbox("Sélectionnez une colonne :", numeric_columns)
+    **Affichage d'un histogramme et d'un boxplot**
+    L'histogramme permet d'observer la fréquence des valeurs et leur répartition, tandis que le boxplot met en évidence la dispersion des données et détecte les valeurs extrêmes.
 
-        if selected_column:
-            fig, ax = plt.subplots(figsize=(8,5))
-            sns.histplot(df[selected_column], bins=30, kde=True, ax=ax)
-            ax.set_xlabel(selected_column)
-            ax.set_ylabel("Fréquence")
-            st.pyplot(fig)
-    
-    with col_right:st.markdown("""
-            ### Observation des valeurs aberrantes et des valeurs extrêmes :
-            **income_composition_of_resources** : Dans l'histogramme, nous pouvons observer une valeur qui semble aberrante.  
-            Lorsque l'on sélectionne cette colonne dans le boxplot, nous constatons effectivement qu'une donnée à 0 semble étrange.  
-            Cette valeur apparaît également dans l'analyse descriptive et dans le boxplot.  
+    **Détection automatique des outliers**
+    Les valeurs aberrantes sont identifiées à l'aide de la méthode de l'IQR (Interquartile Range), qui repère les valeurs situées en dehors de la plage normale des données.
 
-            Nous pouvons en déduire qu'il manque probablement un ensemble de données, car il est peu probable d'avoir un `income_composition_of_resources`
-            égal à zéro, même dans des cas extrêmes.  
-            Je choisis ici d'exclure les outliers.
-            """)
-        
-        # note: gerer les outliners à partir de ici, reprendre chat gpt
- if chart_type == "Boxplots":
-    import matplotlib.pyplot as plt
-    import streamlit as st
-    import pandas as pd
+    **Option pour exclure les outliers**
+    Nous avons si besoin la possibilité d'exclure les valeurs aberrantes afin d'observer leur impact sur la distribution et d'analyser uniquement les données considérées comme représentatives.
+    """)   
 
-    # 🔹 Liste des colonnes à nettoyer (éviter les doublons dans la liste)
-    columns_to_clean = list(set([
-        'schooling', 'income composition of resources', 'adult mortality', 'hiv/aids', 'bmi', 'diphtheria',
-        'polio', 'infant deaths', 'alcohol', 'percentage expenditure', 'hepatitis b', 'measles', 'under-five deaths',
-        'gdp', 'population', 'thinness  1-19 years', 'thinness 5-9 years'
-        ]))
+# --- Exploration avancée des données ---
+st.markdown("---")
 
-    # 🔹 Fonction pour nettoyer les outliers
-    def clean_outliers(data, columns):
-        for col in columns:
-            if col in data.columns:
-                # Calcul des quartiles et de l'IQR
-                Q1 = data[col].quantile(0.25)
-                Q3 = data[col].quantile(0.75)
-                IQR = Q3 - Q1
+if "df_cleaned" not in st.session_state:
+    st.session_state["df_cleaned"] = df.copy()  # On garde une copie propre des données
 
-                # Définir les bornes inférieure et supérieure
-                lower_bound = Q1 - 1.5 * IQR
-                upper_bound = Q3 + 1.5 * IQR
+# Sélection d'une colonne pour l'analyse
+numeric_columns = st.session_state["df_cleaned"].select_dtypes(include=['float64', 'int64']).columns.tolist()
+selected_column = st.selectbox("Sélectionnez une colonne :", numeric_columns)
+col_1, col_2, col_3 = st.columns([2,2,2])
+with col_2:
+    st.write(f"## {selected_column}")
 
-                # Remplacer les valeurs extrêmes par les bornes
-                data.loc[data[col] < lower_bound, col] = lower_bound
-                data.loc[data[col] > upper_bound, col] = upper_bound
-
-        return data
-
-    # 🔹 Appliquer le nettoyage des outliers AVANT affichage des graphiques
-    df_cleaned = clean_outliers(df.copy(), columns_to_clean)
-
-    # 🔹 Récupérer la liste des colonnes disponibles après nettoyage
-    available_columns = df_cleaned.columns.tolist()
-
-    # 🔹 Sélection des variables à afficher
-    st.subheader(" Distribution des variables avec Boxplots (Nettoyées)")
-    selected_columns = st.multiselect("Sélectionnez les variables :", columns_to_clean, default=columns_to_clean[:5])
-
-    if selected_columns:
-        # Vérifier la correspondance des noms de colonnes après nettoyage
-        selected_columns_cleaned = [col.lower().replace(' ', '_') for col in selected_columns if col.lower().replace(' ', '_') in available_columns]
-
-        # Nombre de colonnes et lignes pour affichage
-        n_cols = 3
-        n_rows = len(selected_columns_cleaned) // n_cols + (len(selected_columns_cleaned) % n_cols > 0)
-
-        # Création des subplots
-        fig, axes = plt.subplots(n_rows, n_cols, figsize=(15, n_rows * 3))
-
-        # Gestion du cas où une seule colonne est sélectionnée
-        if n_rows == 1:
-            axes = [axes]
-
-        # Générer les boxplots pour chaque colonne sélectionnée
-        for i, col in enumerate(selected_columns_cleaned):
-            row, col_index = divmod(i, n_cols)
-            ax = axes[row, col_index] if n_rows > 1 else axes[col_index]
-
-            ax.boxplot(df_cleaned[col].dropna(), vert=False, patch_artist=True, showmeans=True)
-            ax.set_title(selected_columns[i])  # Garder le titre original
-            ax.set_xlabel('Valeurs')
-
-        # Supprimer les axes inutilisés
-        for j in range(len(selected_columns_cleaned), n_rows * n_cols):
-            row, col_index = divmod(j, n_cols)
-            fig.delaxes(axes[row, col_index] if n_rows > 1 else axes[col_index])
-
-        # Ajuster l'affichage
-        plt.tight_layout()
+col_1, col_2, col_3 = st.columns([1,2,2])
+with col_1:
+    if selected_column:
+        # Afficher les statistiques descriptives
+        st.write(f"### 📊 Statistiques descriptives")
+        st.write(st.session_state["df_cleaned"][selected_column].describe())
+with col_2:
+    if selected_column:
+        # Histogramme avec KDE
+        st.write(f"### 📈 Distribution")
+        fig, ax = plt.subplots(figsize=(8, 5))
+        sns.histplot(st.session_state["df_cleaned"][selected_column], bins=50, kde=True, ax=ax)
+        plt.xlabel(selected_column)
+        plt.ylabel("Fréquence")
         st.pyplot(fig)
-    else:
-        st.warning("Veuillez sélectionner au moins une variable.")
 
+with col_3:
+    if selected_column:
+        # Boxplot pour identifier les outliers
+        st.write(f"### 📊 Boxplot")
+        fig, ax = plt.subplots(figsize=(8, 5))
+        sns.boxplot(x=st.session_state["df_cleaned"][selected_column], ax=ax)
+        plt.xlabel(selected_column)
+        st.pyplot(fig)
+col_1, col_2, col_3 = st.columns([2,2,2])
+with col_2:
+    st.write(f"### Détection des outliers avec IQR: {selected_column}")
 
-if chart_type == "Heatmap":
-    import seaborn as sns
-    import matplotlib.pyplot as plt
-    import streamlit as st
+col_1, col_2 = st.columns([2,4])
+with col_1:
+    # Détection des outliers avec IQR
+    Q1 = st.session_state["df_cleaned"][selected_column].quantile(0.25)
+    Q3 = st.session_state["df_cleaned"][selected_column].quantile(0.75)
+    IQR = Q3 - Q1
+    lower_bound = Q1 - 1.5 * IQR
+    upper_bound = Q3 + 1.5 * IQR
 
-    st.subheader(" Heatmap des Corrélations")
+    outliers = st.session_state["df_cleaned"][
+        (st.session_state["df_cleaned"][selected_column] < lower_bound) |
+        (st.session_state["df_cleaned"][selected_column] > upper_bound)
+    ]
+
+    # Afficher les outliers détectés
+    st.write(f"### 🔎 Nombre de valeurs aberrantes détectées dans {selected_column} : {outliers.shape[0]}")
+    if not outliers.empty:
+        st.write(outliers[[selected_column]])
+
+    # Option pour exclure les outliers
+   # Option pour exclure les outliers avec une clé unique
+exclude_outliers = st.checkbox("Exclure les valeurs aberrantes", key=f"exclude_{selected_column}")
+
+with col_2:
+    if exclude_outliers:
+        # Supprimer les outliers du dataset stocké dans `st.session_state`
+        st.session_state["df_cleaned"] = st.session_state["df_cleaned"][
+            (st.session_state["df_cleaned"][selected_column] >= lower_bound) & 
+            (st.session_state["df_cleaned"][selected_column] <= upper_bound)
+        ]
+        
+        st.write(f"### 📉 Nouvelle distribution après suppression des outliers ({st.session_state['df_cleaned'].shape[0]} valeurs restantes)")
+        fig, ax = plt.subplots(figsize=(8, 5))
+        sns.histplot(st.session_state["df_cleaned"][selected_column], bins=50, kde=True, ax=ax)
+        plt.xlabel(selected_column)
+        plt.ylabel("Fréquence")
+        st.pyplot(fig)
+
+        # ---------------------------------------------------------------
+        # ---------------------------------------------------------------
+        #  corrélation des variable
+col_1,col_2 = st.columns([2,1])
+# --- Analyse des corrélations ---
+st.markdown("---")
+with col_1:
+    st.markdown("##  Analyse des Corrélations entre les Variables")
+
+    # --- HEATMAP INTERACTIVE AVEC SEUIL DE CORRÉLATION ---
+    st.markdown("### 🔥 Heatmap Interactive des Corrélations avec Seuil Ajustable")
 
     # Sélection des colonnes numériques
     numeric_columns = df.select_dtypes(include=['float64', 'int64']).columns.tolist()
 
-    # Vérifier que des colonnes numériques existent
-    if not numeric_columns:
-        st.warning("Aucune colonne numérique disponible pour la heatmap.")
-    else:
-        # Sélecteur pour le seuil de corrélation
-        correlation_threshold = st.slider("Seuil de corrélation (Valeurs absolues supérieures)", 0.0, 1.0, 0.2, 0.05)
+    # Calcul de la matrice de corrélation complète
+    correlation_matrix = df[numeric_columns].corr()
 
-        # Calcul de la matrice de corrélation
-        correlation_matrix = df[numeric_columns].corr()
+    # Curseur interactif pour filtrer les corrélations
+    correlation_threshold = st.slider("🔍 Sélectionnez le seuil de corrélation à afficher :", 
+                                    min_value=0.0, 
+                                    max_value=1.0, 
+                                    value=0.0,  # Par défaut, afficher tout
+                                    step=0.05)
 
-        # Filtrer les corrélations selon le seuil
-        filtered_corr = correlation_matrix[abs(correlation_matrix) > correlation_threshold]
+    # Filtrage des corrélations en fonction du seuil sélectionné
+    filtered_corr_matrix = correlation_matrix.copy()
+    mask = abs(filtered_corr_matrix) < correlation_threshold
+    filtered_corr_matrix[mask] = 0  # Mettre à zéro les valeurs en dessous du seuil
 
-        # Création de la heatmap
-        fig, ax = plt.subplots(figsize=(10, 6))
-        sns.heatmap(filtered_corr, annot=True, fmt=".2f", cmap="coolwarm", linewidths=0.5, ax=ax)
+    # Création de la heatmap avec Seaborn
+    fig, ax = plt.subplots(figsize=(10, 6))
+    sns.heatmap(filtered_corr_matrix, annot=True, cmap="coolwarm", linewidths=0.5, fmt=".2f", center=0)
+    plt.title(f"Carte de Chaleur des Corrélations (Seuil ≥ {correlation_threshold})")
 
-        # Affichage dans Streamlit
-        st.pyplot(fig)
-
-
-# --------------------------------------------------------------
-
-
-# Section Transformation des données
-st.markdown("---")
-st.markdown("## 5. Transformation des données")
-
-st.write("""
-Tranformons les données pour les rendre exploitables dans mes modèles.  
-Cela inclut :
-- **Normaliser** ou **standardiser** les données si nécessaire.
-- **Encoder** les variables catégoriques.
-- **Créer ou combiner** des colonnes pour extraire des informations pertinentes.
-""")
-
-st.markdown("---")
-st.markdown("###  Standardisation des colonnes en vue d'une régression linéaire")
-st.write("""
-La **standardisation** est préférable à la normalisation dans le cadre de données distribuées,  
-notamment pour garantir une meilleure interprétation et stabilité des modèles de **régression linéaire**.
-""")
-# --------------------------------------------------------------
-from sklearn.preprocessing import StandardScaler
-
-#  Liste des colonnes numériques à standardiser
-columns_to_standardize = [
-    'adult mortality', 'infant deaths', 'alcohol', 'percentage expenditure',
-    'hepatitis b', 'measles', 'bmi', 'under-five deaths',
-    'polio', 'gdp', 'population', 'thinness  1-19 years',
-    'thinness 5-9 years', 'income composition of resources', 'schooling'
-]
-
-
-# Interface utilisateur pour activer ou non la standardisation
-st.markdown("###  Standardisation des colonnes")
-st.write("La standardisation est appliquée aux variables numériques afin de les rendre comparables.")
-
-apply_standardization = st.checkbox("Appliquer la standardisation")
-
-if apply_standardization:
-    # Vérifier si les colonnes existent dans le dataset après nettoyage
-    columns_to_standardize = [col for col in columns_to_standardize if col in df.columns]
-
-    if columns_to_standardize:
-        # Initialiser le standard scaler
-        scaler = StandardScaler()
-
-        # Appliquer la standardisation
-        df[columns_to_standardize] = scaler.fit_transform(df[columns_to_standardize])
-
-        st.success(" Standardisation appliquée avec succès !")
-
-        # Affichage des statistiques après transformation
-        st.write("###  Statistiques après standardisation")
-        st.write(df[columns_to_standardize].describe())
-#---------------------------------------------------------------
-st.markdown("---")
-st.markdown("## 6. Analyse des données")
-
-st.write("""
-Analisons les données pour identifier des relations significatives entre les variables.  
-Cela inclut: 
-Calculer des **corrélations** entre les variables ainsi que
-Réaliser des **tests statistiques** pour valider mes hypothèses.
-""")
-
-import streamlit as st
-import pandas as pd
-
-# Vérification et affichage des corrélations avec 'life expectancy'
-st.markdown("###  Corrélations avec 'Life expectancy'")
-
-if 'life expectancy' in df.columns:
-    # Calcul des corrélations
-    correlations = df.corr()['life expectancy'].sort_values(ascending=False)
-
-    # Affichage dans un tableau interactif
-    st.write(" **Top des corrélations avec l'espérance de vie** :")
-    st.write(correlations)
-else:
-    st.warning("⚠ La colonne 'life expectancy' n'existe pas dans le dataset.")
+    # Affichage dans Streamlit
+    st.pyplot(fig)
