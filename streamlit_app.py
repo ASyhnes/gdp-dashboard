@@ -3,6 +3,8 @@
 import subprocess
 import sys
 import pkg_resources
+import kagglehub.models  
+
 
 def install_requirements():
     try:
@@ -551,3 +553,168 @@ with col_1:
 
     # Affichage dans Streamlit
     st.pyplot(fig)
+
+
+st.markdown("""
+            # Préparations des données d'entrainements:
+            ---
+            ## choix des Variables
+            Nous faisons deux sets de variable pour les predictions que nous testerons:
+            - **set 1:** Cet ensemble regroupe les variables qui ont une forte corrélation avec life_expectancy.
+            
+            ---
+
+            | **Variable**                     | **Corrélation avec life_expectancy** |
+            |----------------------------------|----------------------------------|
+            | **Schooling**                    | **0.71** |
+            | **Income composition of resources** | **0.69** |
+            | **GDP**                           | **0.43** |
+            | **Total expenditure**             | **0.46** |
+            | **Adult Mortality**               | **-0.71** (corrélation négative) |
+            | **HIV/AIDS**                      | **-0.55** (corrélation négative) |
+
+            ---
+
+            
+            - **set 2:** Cet ensemble est conçu pour éviter la colinéarité et tester un modèle plus équilibré.
+        
+            ---
+
+            | **Variable 1**                      | **Variable 2**                        | **Corrélation**  |
+            |--------------------------------------|--------------------------------------|------------------|
+            | **Total expenditure**                | **HIV/AIDS**                         | **0.37**        |
+            | **Alcohol**                           | **Infant deaths**                    | **0.10**        |
+            | **Schooling**                         | **Polio**                            | **0.50**        |
+            | **Thinness 1-19 years**               | **BMI**                              | **-0.40**       |
+            | **Income composition of resources**   | **Adult Mortality**                  | **-0.69**       |
+            
+            ---
+
+            les ensemble sont divisé en trois jeux: deux jeus d'entrainements et un jeu de verification. 
+
+            """)
+
+from sklearn.model_selection import train_test_split
+
+# Vérification que toutes les colonnes existent dans le DataFrame
+columns_set1 = ["schooling", "income_composition_of_resources", "gdp", 
+                "total_expenditure", "adult_mortality", "hiv/aids"]
+columns_set2 = [["total_expenditure", "hiv/aids"], ["alcohol", "infant_deaths"], 
+                ["schooling", "polio"], ["thinness__1-19_years", "bmi"], 
+                ["income_composition_of_resources", "adult_mortality"]]
+
+# Supprimer les valeurs manquantes pour éviter des erreurs lors du split
+df = df.dropna(subset=["life_expectancy"] + columns_set1 + [col for pair in columns_set2 for col in pair])
+
+# Définition de la cible (Y) pour l'apprentissage
+train_y = df["life_expectancy"]
+
+# Jeu de données 1 : Variables fortement corrélées avec life_expectancy
+train_x_set1 = df[columns_set1]
+
+# Jeu de données 2 : Variables modérément corrélées et plus diversifiées
+train_x_set2 = df[[col for pair in columns_set2 for col in pair]]
+
+# Division en ensemble d'entraînement et de test
+X_train_1, X_test_1, y_train_1, y_test_1 = train_test_split(train_x_set1, train_y, test_size=0.2, random_state=42)
+X_train_2, X_test_2, y_train_2, y_test_2 = train_test_split(train_x_set2, train_y, test_size=0.2, random_state=42)
+
+# Vérification des formes des ensembles
+st.write(f"Shape du jeu de données 1 (X_train_1) : {X_train_1.shape}")
+st.write(f"Shape du jeu de données 2 (X_train_2) : {X_train_2.shape}")
+
+# -------------------------------------------------------------------------------------------------
+# -------------------------------------------------------------------------------------------------
+from sklearn.linear_model import LinearRegression
+from sklearn.ensemble import RandomForestRegressor, GradientBoostingRegressor
+from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score
+
+# Définition des modèles
+models = {
+    "Régression Linéaire": LinearRegression(),
+    "Forêt Aléatoire": RandomForestRegressor(n_estimators=100, random_state=42),
+    "Gradient Boosting": GradientBoostingRegressor(n_estimators=100, learning_rate=0.1, random_state=42)
+}
+
+# Dictionnaires pour stocker les résultats
+results = {
+    "Jeu de Données 1": {},
+    "Jeu de Données 2": {}
+}
+
+# Entraînement et évaluation des modèles
+for name, model in models.items():
+    # Entraînement sur le premier jeu de données
+    model.fit(X_train_1, y_train_1)
+    y_pred_1 = model.predict(X_test_1)
+
+    # Entraînement sur le deuxième jeu de données
+    model.fit(X_train_2, y_train_2)
+    y_pred_2 = model.predict(X_test_2)
+
+    # Évaluation des performances pour chaque modèle
+    results["Jeu de Données 1"][name] = {
+        "MAE": mean_absolute_error(y_test_1, y_pred_1),
+        "MSE": mean_squared_error(y_test_1, y_pred_1),
+        "R²": r2_score(y_test_1, y_pred_1)
+    }
+
+    results["Jeu de Données 2"][name] = {
+        "MAE": mean_absolute_error(y_test_2, y_pred_2),
+        "MSE": mean_squared_error(y_test_2, y_pred_2),
+        "R²": r2_score(y_test_2, y_pred_2)
+    }
+
+# Affichage des résultats sous forme de tableau
+import pandas as pd
+df_results_1 = pd.DataFrame(results["Jeu de Données 1"]).T
+df_results_2 = pd.DataFrame(results["Jeu de Données 2"]).T
+
+st.subheader("Résultats des Modèles - Jeu de Données 1")
+st.write(df_results_1)
+
+st.subheader("Résultats des Modèles - Jeu de Données 2")
+st.write(df_results_2)
+
+st.markdown("""
+
+        Nous avons testé **trois modèles d'apprentissage supervisé** sur nos deux jeux de données :
+        1. **Régression Linéaire** 
+        2. **Forêt Aléatoire** 
+        3. **Gradient Boosting** 
+
+        ##  Critères d'Évaluation des Modèles
+
+        Nous avons évalué la performance des modèles à l’aide de trois métriques principales :
+
+        - **R² (coefficient de détermination) :**  
+        Indique la proportion de la variance de la variable cible (Life Expectancy) expliquée par le modèle.  
+        - **Valeur proche de 1 :** le modèle est performant.  
+        - **Valeur proche de 0 :** le modèle n'explique pas bien les variations de la cible.
+
+        - **MSE (Mean Squared Error - Erreur Quadratique Moyenne) :**  
+        Mesure la différence moyenne entre les valeurs prédites et les valeurs réelles, en **élevant au carré** les écarts pour accentuer l'impact des grandes erreurs.  
+        - **Plus la MSE est faible, meilleur est le modèle.**
+
+        - **MAE (Mean Absolute Error - Erreur Absolue Moyenne) :**  
+        Similaire à la MSE, mais **sans élever au carré** les erreurs, ce qui la rend **moins sensible aux valeurs aberrantes**.  
+        - **Plus la MAE est faible, plus la prédiction est précise.**
+
+        ##  Observations
+
+        | Modèle | Jeu de Données 1 (R²) | Jeu de Données 2 (R²) | Observation |
+        |--------|----------------------|----------------------|-------------|
+        | **Régression Linéaire** | 0.7707 | 0.8003 | Performances acceptables, mais limitées par la linéarité des relations entre les variables. |
+        | **Forêt Aléatoire** | 0.9629 | 0.9701 | Très bon modèle, capable de capturer des relations complexes. Faible erreur. |
+        | **Gradient Boosting** | 0.9376 | 0.9531 | Excellent compromis entre complexité et performance, souvent plus robuste que la Forêt Aléatoire. |
+
+        - La **Régression Linéaire** est la plus simple, mais a du mal à capturer les relations non linéaires.
+        - La **Forêt Aléatoire** et le **Gradient Boosting** offrent de bien meilleures performances, avec des valeurs R² proches de 1 et une erreur bien plus faible.
+        - Le **Gradient Boosting** est généralement plus stable et performant pour les données complexes.
+
+        ##  Conclusion
+        Si l'on recherche un **modèle simple et interprétable**, la **Régression Linéaire** peut suffire.  
+        Cependant, pour **obtenir les meilleures performances**, la **Forêt Aléatoire** et le **Gradient Boosting** sont de meilleurs choix.  
+
+         **Prochaine étape : Affiner les hyperparamètres des modèles pour optimiser encore la précision des prédictions.**
+        """)

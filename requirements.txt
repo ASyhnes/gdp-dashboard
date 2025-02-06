@@ -5,6 +5,8 @@ matplotlib
 seaborn
 scikit-learn
 kagglehub
+sigstore
 pathlib
 seaborn
 unidecode
+ace_tools
