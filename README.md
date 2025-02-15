@@ -1,10 +1,10 @@
-# 🌍 Prédiction de l'Espérance de Vie - Analyse de Données de l'OMS
+# Prédiction de l'Espérance de Vie - Analyse de Données de l'OMS
 
 Ce projet est une application interactive développée avec **Streamlit** permettant d'explorer et de prédire l'espérance de vie en fonction de divers facteurs socio-économiques et de santé. Il s'appuie sur un **dataset de l'OMS** et met en œuvre des techniques de **machine learning** pour analyser les tendances à travers différents pays et années.
 
 ---
 
-## 📌 Objectifs du projet
+## Objectifs du projet
 
 🔹 **Nettoyage et prétraitement des données** : Suppression des valeurs manquantes et transformation des variables.  
 🔹 **Exploration et visualisation** : Identifier les tendances et relations entre les variables.  
@@ -32,6 +32,8 @@ Ce projet est une application interactive développée avec **Streamlit** permet
 ```bash
 git clone https://github.com/ASyhnes/gdp-dashboard.git
 cd gdp-dashboard
+```
+
 ### 2️⃣ Installer les dépendances
 Python 3.8+, puis installez les bibliothèques nécessaires :
 
